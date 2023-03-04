@@ -1,6 +1,56 @@
 import cv2
 import numpy as np
+from sentinelhub import SHConfig, DataCollection, BBox, CRS, WmsRequest
 import matplotlib.pyplot as plt
+from config import sentinelhub
+
+class Capture:
+    def __init__(self, lon_min, lat_min, lon_max, lat_max, saveinto):
+        self.lon_min = lon_min
+        self.lat_min = lat_min
+        self.lon_max = lon_max
+        self.lat_max = lat_max
+        self.saveinto = saveinto
+
+    def plot_image(self, image, factor=1):
+        """
+        Utility function for plotting RGB images.
+        """
+        plt.subplots(nrows=1, ncols=1, figsize=(15, 7))
+
+        if np.issubdtype(image.dtype, np.floating):
+            plt.imshow(np.minimum(image * factor, 1))
+            plt.savefig(self.saveinto)
+        else:
+            plt.imshow(image)
+            plt.savefig(self.saveinto)
+
+    def capture(self):
+        # Configura la conexión con la API de Sentinel Hub
+        config = SHConfig()
+        config.sh_client_id = sentinelhub.sentinelhub_client_id
+        config.sh_client_secret = sentinelhub.sentinelhub_client_secret
+        config.instance_id = sentinelhub.sentinelhub_instance_id
+
+        # Define las coordenadas de interés
+        coordenadas = BBox(bbox=(self.lon_min, self.lat_min, self.lon_max, self.lat_max), crs=CRS.WGS84)
+
+        # Crea una consulta para obtener las imágenes de satélite
+        consulta = WmsRequest(
+            data_collection=DataCollection.SENTINEL2_L1C,
+            layer='TRUE-COLOR-S2L2A',
+            bbox=coordenadas,
+            time="latest",
+            width=2500,
+            height=2500,
+            maxcc=0.3,
+            config=config,
+        )
+
+        # Obtén los datos de la imagen
+        datos_imagen = consulta.get_data()
+
+        self.plot_image(datos_imagen[-1])
 
 class Analysis:
     def __init__(self, img_path):
